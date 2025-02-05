@@ -14,15 +14,22 @@ function loadBotConfigs() {
     const aiId = process.env[`AI_ID_${currentIndex}`];
     const botToken = process.env[`BOT_TOKEN_${currentIndex}`];
 
-    // If either is missing, we've reached the end of our configs
+    // If either required value is missing, we've reached the end of our configs
     if (!aiId || !botToken) {
       break;
     }
+
+    // Get optional settings
+    const appLink = process.env[`APP_LINK_${currentIndex}`];
+    const enableFilter =
+      process.env[`ENABLE_FILTER_${currentIndex}`]?.toLowerCase() === "true";
 
     configs.push({
       id: `bot${currentIndex}`,
       discordBotToken: botToken,
       aiId: aiId,
+      appLink: appLink || null,
+      enableFilter: enableFilter,
     });
 
     currentIndex++;

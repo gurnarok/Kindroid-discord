@@ -5,15 +5,17 @@ const axios = require("axios");
  *
  * @param {string} aiId - identifies which AI to use
  * @param {Array} conversation - an array of {role, user, text, timestamp}
+ * @param {boolean} enableFilter - whether to enable NSFW filtering
  * @returns {Promise<string>} aiReply - the text the AI returns
  */
-async function callKindroidAI(aiId, conversation) {
+async function callKindroidAI(aiId, conversation, enableFilter = false) {
   try {
     const response = await axios.post(
       process.env.KINDROID_INFER_URL,
       {
         aiId,
         conversation,
+        enableFilter,
       },
       {
         headers: {

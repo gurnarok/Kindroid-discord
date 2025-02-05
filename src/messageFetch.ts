@@ -1,29 +1,43 @@
+import { TextChannel, DMChannel, Message } from "discord.js";
+import { ConversationMessage } from "./types";
+
+// Track message cache with proper typing
+interface CacheEntry {
+  lastFetchTime: number;
+  messages: ConversationMessage[];
+}
+
 // In-memory cache for recent message fetches
-const channelCache = new Map();
+const channelCache = new Map<string, CacheEntry>();
 
 /**
  * Fetches conversation from Discord channel
- * @param {Discord.TextChannel} channel - The Discord channel to fetch from
- * @param {number} limit - Number of messages to fetch
- * @returns {Promise<Array>} Array of formatted messages
+ * @param channel - The Discord channel to fetch from
+ * @param limit - Number of messages to fetch
+ * @returns Array of formatted messages
  */
-async function fetchConversationFromDiscord(channel, limit = 30) {
+async function fetchConversationFromDiscord(
+  channel: TextChannel | DMChannel,
+  limit: number = 30
+): Promise<ConversationMessage[]> {
   try {
     // Fetch messages from Discord
     const fetched = await channel.messages.fetch({ limit });
 
     // Sort messages chronologically (oldest first)
     const sorted = Array.from(fetched.values()).sort(
-      (a, b) => a.createdTimestamp - b.createdTimestamp
+      (a: Message, b: Message) => a.createdTimestamp - b.createdTimestamp
     );
 
     // Format messages for AI consumption
-    return sorted.map((msg) => ({
-      role: msg.author.bot ? "assistant" : "user",
-      user: msg.author.username,
-      text: msg.content,
-      timestamp: msg.createdAt.toISOString(),
-    }));
+    return sorted.map(
+      (msg: Message): ConversationMessage => ({
+        role: msg.author.bot ? "assistant" : "user",
+        user: msg.author.username,
+        text: msg.content,
+        timestamp: msg.createdAt.toISOString(),
+      })
+    );
   } catch (error) {
     console.error("Error fetching messages:", error);
     throw new Error("Failed to fetch conversation history");
@@ -32,15 +46,15 @@ async function fetchConversationFromDiscord(channel, limit = 30) {
 
 /**
  * Fetches conversation with caching support
- * @param {Discord.TextChannel} channel - The Discord channel
- * @param {number} limit - Number of messages to fetch
- * @param {number} cacheDurationMs - How long to cache messages
+ * @param channel - The Discord channel
+ * @param limit - Number of messages to fetch
+ * @param cacheDurationMs - How long to cache messages
  */
 async function ephemeralFetchConversation(
-  channel,
-  limit = 30,
-  cacheDurationMs = 5000
-) {
+  channel: TextChannel | DMChannel,
+  limit: number = 30,
+  cacheDurationMs: number = 5000
+): Promise<ConversationMessage[]> {
   const now = Date.now();
   const cacheKey = channel.id;
   const cached = channelCache.get(cacheKey);
@@ -73,7 +87,4 @@ async function ephemeralFetchConversation(
   return messages;
 }
 
-module.exports = {
-  fetchConversationFromDiscord,
-  ephemeralFetchConversation,
-};
+export { fetchConversationFromDiscord, ephemeralFetchConversation };

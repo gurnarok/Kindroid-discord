@@ -1,13 +1,16 @@
-require("dotenv").config();
-const { initializeAllBots, shutdownAllBots } = require("./discordManager");
+import dotenv from "dotenv";
+import { initializeAllBots, shutdownAllBots } from "./discordManager";
+import { BotConfig } from "./types";
+
+dotenv.config();
 
 /**
  * Load bot configurations from environment variables
  * Looks for pairs of AI_ID_N and BOT_TOKEN_N where N starts from 1
- * @returns {Array} Array of bot configurations
+ * @returns Array of bot configurations
  */
-function loadBotConfigs() {
-  const configs = [];
+function loadBotConfigs(): BotConfig[] {
+  const configs: BotConfig[] = [];
   let currentIndex = 1;
 
   while (true) {
@@ -20,16 +23,16 @@ function loadBotConfigs() {
     }
 
     // Get optional settings
-    const appLink = process.env[`APP_LINK_${currentIndex}`];
+    const appLink = process.env[`APP_LINK_${currentIndex}`] || null;
     const enableFilter =
       process.env[`ENABLE_FILTER_${currentIndex}`]?.toLowerCase() === "true";
 
     configs.push({
       id: `bot${currentIndex}`,
       discordBotToken: botToken,
-      aiId: aiId,
-      appLink: appLink || null,
-      enableFilter: enableFilter,
+      aiId,
+      appLink,
+      enableFilter,
     });
 
     currentIndex++;
@@ -38,14 +41,17 @@ function loadBotConfigs() {
   return configs;
 }
 
-// Validate environment variables
-function validateEnv() {
+/**
+ * Validate environment variables
+ * @throws Error if required variables are missing
+ */
+function validateEnv(): void {
   const requiredVars = [
     "KINDROID_INFER_URL",
     "KINDROID_API_KEY",
     "AI_ID_1", // At least one bot is required
     "BOT_TOKEN_1",
-  ];
+  ] as const;
 
   const missing = requiredVars.filter((varName) => !process.env[varName]);
 
@@ -80,7 +86,7 @@ function validateEnv() {
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   try {
     // Validate environment
     validateEnv();

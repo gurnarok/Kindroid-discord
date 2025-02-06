@@ -1,20 +1,30 @@
 import axios, { AxiosError } from "axios";
-import { ConversationMessage, KindroidResponse } from "./types";
+import {
+  ConversationMessage,
+  KindroidResponse,
+  KindroidAIResult,
+} from "./types";
 
 /**
  * Calls the Kindroid AI inference endpoint
  * @param sharedAiCode - shared code for API identification
  * @param conversation - array of conversation messages
  * @param enableFilter - whether to enable NSFW filtering
- * @returns The AI's reply text
- * @throws Error if the API call fails
+ * @returns KindroidAIResult indicating success with reply or rate limit
+ * @throws Error if the API call fails (except for rate limits)
  */
 export async function callKindroidAI(
   sharedAiCode: string,
   conversation: ConversationMessage[],
   enableFilter: boolean = false
-): Promise<string> {
+): Promise<KindroidAIResult> {
   try {
+    if (conversation.length === 0) {
+      throw new Error("Conversation array cannot be empty");
+    }
+
+    const lastUsername = conversation[conversation.length - 1].username;
+
     const response = await axios.post<KindroidResponse>(
       process.env.KINDROID_INFER_URL!,
       {
@@ -25,6 +35,7 @@ export async function callKindroidAI(
       {
         headers: {
           Authorization: `Bearer ${process.env.KINDROID_API_KEY!}`,
+          "X-Kindroid-Requester": lastUsername,
           "Content-Type": "application/json",
         },
       }
@@ -34,7 +45,10 @@ export async function callKindroidAI(
       throw new Error(response.data.error || "API request failed");
     }
 
-    return response.data.reply.replace(/@(everyone|here)/g, "");
+    return {
+      type: "success",
+      reply: response.data.reply.replace(/@(everyone|here)/g, ""),
+    };
   } catch (error) {
     console.error("Error calling Kindroid AI:", (error as Error).message);
     if (axios.isAxiosError(error)) {
@@ -42,6 +56,9 @@ export async function callKindroidAI(
       if (axiosError.response) {
         console.error("Response data:", axiosError.response.data);
         console.error("Response status:", axiosError.response.status);
+        if (axiosError.response.status === 429) {
+          return { type: "rate_limited" };
+        }
         if (axiosError.response.data?.error) {
           throw new Error(axiosError.response.data.error);
         }

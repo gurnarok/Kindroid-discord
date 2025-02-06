@@ -106,8 +106,18 @@ async function fetchConversationFromDiscord(
       (a: Message, b: Message) => a.createdTimestamp - b.createdTimestamp
     );
 
-    // Pre-fetch display names for unique users
-    const uniqueUsers = new Set(sorted.map((msg) => msg.author.id));
+    // Get our bot's client ID
+    const ourBotId = channel.client.user?.id;
+    if (!ourBotId) {
+      throw new Error("Bot client ID not found");
+    }
+
+    // Pre-fetch display names for all users except our bot
+    const uniqueUsers = new Set(
+      sorted
+        .filter((msg) => msg.author.id !== ourBotId)
+        .map((msg) => msg.author.id)
+    );
     const displayNamePromises = Array.from(uniqueUsers).map(async (userId) => {
       // Find first message from this user to use as reference
       const userMsg = sorted.find((m) => m.author.id === userId);
@@ -119,11 +129,14 @@ async function fetchConversationFromDiscord(
     // Wait for all display names to be cached
     await Promise.all(displayNamePromises);
 
-    // Now format messages using cached display names
+    // Now format messages using cached display names or {{ai}} for our bot's messages
     const messages = await Promise.all(
       sorted.map(
         async (msg: Message): Promise<ConversationMessage> => ({
-          username: await getUserDisplayName(msg),
+          username:
+            msg.author.id === ourBotId
+              ? "{{ai}}"
+              : await getUserDisplayName(msg),
           text: msg.content,
           timestamp: msg.createdAt.toISOString(),
         })

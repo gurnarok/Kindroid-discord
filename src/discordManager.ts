@@ -79,20 +79,25 @@ async function createDiscordClientForBot(
       );
 
       // Call Kindroid AI with the conversation context
-      const aiReply = await callKindroidAI(
+      const aiResult = await callKindroidAI(
         botConfig.sharedAiCode,
         conversationArray,
         botConfig.enableFilter
       );
 
+      // If rate limited, silently ignore
+      if (aiResult.type === "rate_limited") {
+        return;
+      }
+
       // If it was a mention, reply to the message. Otherwise, send as normal message
       if (isMentioned) {
-        await message.reply(aiReply);
+        await message.reply(aiResult.reply);
       } else if (
         message.channel instanceof BaseGuildTextChannel ||
         message.channel instanceof DMChannel
       ) {
-        await message.channel.send(aiReply);
+        await message.channel.send(aiResult.reply);
       }
     } catch (error) {
       console.error(`[Bot ${botConfig.id}] Error:`, error);
@@ -163,14 +168,19 @@ async function handleDirectMessage(
       );
 
       // Call Kindroid AI
-      const aiReply = await callKindroidAI(
+      const aiResult = await callKindroidAI(
         botConfig.sharedAiCode,
         conversationArray,
         botConfig.enableFilter
       );
 
+      // If rate limited, silently ignore
+      if (aiResult.type === "rate_limited") {
+        return;
+      }
+
       // Send the AI's reply
-      await message.reply(aiReply);
+      await message.reply(aiResult.reply);
     }
   } catch (error) {
     console.error(`[Bot ${botConfig.id}] DM Error:`, error);

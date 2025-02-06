@@ -13,12 +13,14 @@ function loadBotConfigs(): BotConfig[] {
   const configs: BotConfig[] = [];
   let currentIndex = 1;
 
-  while (true) {
+  let hasMoreConfigs = true;
+  while (hasMoreConfigs) {
     const sharedAiCode = process.env[`SHARED_AI_CODE_${currentIndex}`];
     const botToken = process.env[`BOT_TOKEN_${currentIndex}`];
 
     // If either required value is missing, we've reached the end of our configs
     if (!sharedAiCode || !botToken) {
+      hasMoreConfigs = false;
       break;
     }
 
@@ -63,12 +65,14 @@ function validateEnv(): void {
 
   // Validate bot config pairs
   let currentIndex = 1;
-  while (true) {
+  let hasMoreConfigs = true;
+  while (hasMoreConfigs) {
     const hasSharedAiCode = !!process.env[`SHARED_AI_CODE_${currentIndex}`];
     const hasBotToken = !!process.env[`BOT_TOKEN_${currentIndex}`];
 
     // If neither exists, we're done checking
     if (!hasSharedAiCode && !hasBotToken) {
+      hasMoreConfigs = false;
       break;
     }
 

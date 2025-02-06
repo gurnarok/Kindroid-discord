@@ -27,7 +27,6 @@ const DISPLAY_NAME_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
  */
 async function getUserDisplayName(msg: Message): Promise<string> {
   try {
-    console.log(msg);
     // Check cache first
     const cacheKey = msg.guildId
       ? `${msg.guildId}:${msg.author.id}`
@@ -111,7 +110,7 @@ async function fetchConversationFromDiscord(
     const uniqueUsers = new Set(sorted.map((msg) => msg.author.id));
     const displayNamePromises = Array.from(uniqueUsers).map(async (userId) => {
       // Find first message from this user to use as reference
-      const userMsg = sorted.find((msg) => msg.author.id === userId);
+      const userMsg = sorted.find((m) => m.author.id === userId);
       if (userMsg) {
         await getUserDisplayName(userMsg);
       }

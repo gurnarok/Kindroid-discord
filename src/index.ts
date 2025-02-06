@@ -6,7 +6,7 @@ dotenv.config();
 
 /**
  * Load bot configurations from environment variables
- * Looks for pairs of AI_ID_N and BOT_TOKEN_N where N starts from 1
+ * Looks for pairs of SHARED_AI_CODE_N and BOT_TOKEN_N where N starts from 1
  * @returns Array of bot configurations
  */
 function loadBotConfigs(): BotConfig[] {
@@ -14,24 +14,22 @@ function loadBotConfigs(): BotConfig[] {
   let currentIndex = 1;
 
   while (true) {
-    const aiId = process.env[`AI_ID_${currentIndex}`];
+    const sharedAiCode = process.env[`SHARED_AI_CODE_${currentIndex}`];
     const botToken = process.env[`BOT_TOKEN_${currentIndex}`];
 
     // If either required value is missing, we've reached the end of our configs
-    if (!aiId || !botToken) {
+    if (!sharedAiCode || !botToken) {
       break;
     }
 
     // Get optional settings
-    const appLink = process.env[`APP_LINK_${currentIndex}`] || null;
     const enableFilter =
       process.env[`ENABLE_FILTER_${currentIndex}`]?.toLowerCase() === "true";
 
     configs.push({
       id: `bot${currentIndex}`,
       discordBotToken: botToken,
-      aiId,
-      appLink,
+      sharedAiCode,
       enableFilter,
     });
 
@@ -49,7 +47,7 @@ function validateEnv(): void {
   const requiredVars = [
     "KINDROID_INFER_URL",
     "KINDROID_API_KEY",
-    "AI_ID_1", // At least one bot is required
+    "SHARED_AI_CODE_1", // At least one bot is required
     "BOT_TOKEN_1",
   ] as const;
 
@@ -66,18 +64,18 @@ function validateEnv(): void {
   // Validate bot config pairs
   let currentIndex = 1;
   while (true) {
-    const hasAiId = !!process.env[`AI_ID_${currentIndex}`];
+    const hasSharedAiCode = !!process.env[`SHARED_AI_CODE_${currentIndex}`];
     const hasBotToken = !!process.env[`BOT_TOKEN_${currentIndex}`];
 
     // If neither exists, we're done checking
-    if (!hasAiId && !hasBotToken) {
+    if (!hasSharedAiCode && !hasBotToken) {
       break;
     }
 
     // If one exists without the other, that's an error
-    if (hasAiId !== hasBotToken) {
+    if (hasSharedAiCode !== hasBotToken) {
       console.error(
-        `Error: Bot ${currentIndex} must have both AI_ID_${currentIndex} and BOT_TOKEN_${currentIndex} defined`
+        `Error: Bot ${currentIndex} must have both SHARED_AI_CODE_${currentIndex} and BOT_TOKEN_${currentIndex} defined`
       );
       process.exit(1);
     }

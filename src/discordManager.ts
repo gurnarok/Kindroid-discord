@@ -80,7 +80,7 @@ async function createDiscordClientForBot(
 
       // Call Kindroid AI with the conversation context
       const aiReply = await callKindroidAI(
-        botConfig.aiId,
+        botConfig.sharedAiCode,
         conversationArray,
         botConfig.enableFilter
       );
@@ -164,21 +164,13 @@ async function handleDirectMessage(
 
       // Call Kindroid AI
       const aiReply = await callKindroidAI(
-        botConfig.aiId,
+        botConfig.sharedAiCode,
         conversationArray,
         botConfig.enableFilter
       );
 
       // Send the AI's reply
       await message.reply(aiReply);
-
-      // After 5 exchanges, add call-to-action if app link exists
-      if (newCount === 5 && botConfig.appLink) {
-        await message.channel.send(
-          `💡 Enjoying our conversation? Continue chatting with me on Kindroid: ${botConfig.appLink}\n` +
-            "You'll get access to more features and longer conversations there!"
-        );
-      }
     }
   } catch (error) {
     console.error(`[Bot ${botConfig.id}] DM Error:`, error);

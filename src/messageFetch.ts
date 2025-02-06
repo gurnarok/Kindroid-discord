@@ -7,8 +7,86 @@ interface CacheEntry {
   messages: ConversationMessage[];
 }
 
+// Cache for display names
+interface DisplayNameCacheEntry {
+  displayName: string;
+  lastFetchTime: number;
+}
+
 // In-memory cache for recent message fetches
 const channelCache = new Map<string, CacheEntry>();
+// Cache for display names - key is guildId:userId
+const displayNameCache = new Map<string, DisplayNameCacheEntry>();
+
+const DISPLAY_NAME_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Gets the display name for a message author with proper member fetching
+ * @param msg - Discord message
+ * @returns The most appropriate display name
+ */
+async function getUserDisplayName(msg: Message): Promise<string> {
+  try {
+    console.log(msg);
+    // Check cache first
+    const cacheKey = msg.guildId
+      ? `${msg.guildId}:${msg.author.id}`
+      : msg.author.id;
+    const now = Date.now();
+    const cached = displayNameCache.get(cacheKey);
+
+    if (cached && now - cached.lastFetchTime < DISPLAY_NAME_CACHE_DURATION) {
+      return cached.displayName;
+    }
+
+    let displayName: string;
+
+    // If in a guild, try to get server nickname
+    if (msg.guildId) {
+      try {
+        const guild = msg.client.guilds.cache.get(msg.guildId);
+        if (!guild) {
+          throw new Error("Guild not found in cache");
+        }
+
+        const member = await guild.members.fetch(msg.author.id);
+        if (member && member.nickname) {
+          displayName = member.nickname;
+        } else if (msg.author.globalName) {
+          displayName = msg.author.globalName;
+        } else {
+          displayName = msg.author.username;
+        }
+      } catch (error) {
+        console.error("Error fetching guild member:", error);
+        displayName = msg.author.globalName || msg.author.username;
+      }
+    } else {
+      displayName = msg.author.globalName || msg.author.username;
+    }
+
+    // Update cache
+    displayNameCache.set(cacheKey, {
+      displayName,
+      lastFetchTime: now,
+    });
+
+    // Clean old cache entries periodically
+    if (displayNameCache.size > 1000) {
+      const oldestAllowed = now - DISPLAY_NAME_CACHE_DURATION;
+      for (const [key, value] of displayNameCache.entries()) {
+        if (value.lastFetchTime < oldestAllowed) {
+          displayNameCache.delete(key);
+        }
+      }
+    }
+
+    return displayName;
+  } catch (error) {
+    console.error("Error getting display name:", error);
+    return msg.author.username;
+  }
+}
 
 /**
  * Fetches conversation from Discord channel
@@ -29,15 +107,31 @@ async function fetchConversationFromDiscord(
       (a: Message, b: Message) => a.createdTimestamp - b.createdTimestamp
     );
 
-    // Format messages for AI consumption
-    return sorted.map(
-      (msg: Message): ConversationMessage => ({
-        role: msg.author.bot ? "assistant" : "user",
-        user: msg.author.username,
-        text: msg.content,
-        timestamp: msg.createdAt.toISOString(),
-      })
+    // Pre-fetch display names for unique users
+    const uniqueUsers = new Set(sorted.map((msg) => msg.author.id));
+    const displayNamePromises = Array.from(uniqueUsers).map(async (userId) => {
+      // Find first message from this user to use as reference
+      const userMsg = sorted.find((msg) => msg.author.id === userId);
+      if (userMsg) {
+        await getUserDisplayName(userMsg);
+      }
+    });
+
+    // Wait for all display names to be cached
+    await Promise.all(displayNamePromises);
+
+    // Now format messages using cached display names
+    const messages = await Promise.all(
+      sorted.map(
+        async (msg: Message): Promise<ConversationMessage> => ({
+          username: await getUserDisplayName(msg),
+          text: msg.content,
+          timestamp: msg.createdAt.toISOString(),
+        })
+      )
     );
+
+    return messages;
   } catch (error) {
     console.error("Error fetching messages:", error);
     throw new Error("Failed to fetch conversation history");

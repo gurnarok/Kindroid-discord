@@ -1,21 +1,21 @@
 export interface BotConfig {
   id: string;
   discordBotToken: string;
-  aiId: string;
-  appLink: string | null;
+  sharedAiCode: string;
   enableFilter: boolean;
 }
 
 export interface ConversationMessage {
-  role: "user" | "assistant";
-  user: string;
+  username: string;
   text: string;
-  timestamp: string;
+  timestamp?: string;
 }
 
 export interface KindroidResponse {
+  success: boolean;
   reply: string;
-  [key: string]: any; // For any additional fields that might be returned
+  stop_reason?: string | null;
+  error?: string;
 }
 
 export interface DMConversationCount {

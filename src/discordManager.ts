@@ -6,6 +6,7 @@ import {
   DMChannel,
   ChannelType,
   BaseGuildTextChannel,
+  PermissionFlagsBits,
 } from "discord.js";
 import { ephemeralFetchConversation } from "./messageFetch";
 import { callKindroidAI } from "./kindroidAPI";
@@ -16,6 +17,43 @@ const activeBots = new Map<string, Client>();
 
 // Track DM conversation counts with proper typing
 const dmConversationCounts = new Map<string, DMConversationCount>();
+
+// Helper function to check if the bot can respond to a channel before responding
+async function canRespondToChannel(
+  channel: Message["channel"]
+): Promise<boolean> {
+  try {
+    // For DM channels, we only need to check if we can send messages
+    if (channel.type === ChannelType.DM) {
+      return true;
+    }
+
+    // For all guild-based channels that support messages
+    if (channel.isTextBased() && !channel.isDMBased()) {
+      const permissions = channel.permissionsFor(channel.client.user);
+      if (!permissions) return false;
+
+      // Basic permissions needed for any text-based channel
+      const requiredPermissions = [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ReadMessageHistory,
+      ];
+
+      // Add thread permissions if the channel is a thread
+      if (channel.isThread()) {
+        requiredPermissions.push(PermissionFlagsBits.SendMessagesInThreads);
+      }
+
+      return permissions.has(requiredPermissions);
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Error checking permissions:", error);
+    return false;
+  }
+}
 
 /**
  * Creates and initializes a Discord client for a specific bot configuration
@@ -42,6 +80,8 @@ async function createDiscordClientForBot(
   client.on("messageCreate", async (message: Message) => {
     // Ignore bot messages
     if (message.author.bot) return;
+
+    if (!(await canRespondToChannel(message.channel))) return;
 
     // Handle DMs differently from server messages
     if (message.channel.type === ChannelType.DM) {

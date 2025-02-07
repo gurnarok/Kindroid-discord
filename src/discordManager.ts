@@ -7,6 +7,7 @@ import {
   ChannelType,
   BaseGuildTextChannel,
   PermissionFlagsBits,
+  Partials,
 } from "discord.js";
 import { ephemeralFetchConversation } from "./messageFetch";
 import { callKindroidAI } from "./kindroidAPI";
@@ -69,6 +70,7 @@ async function createDiscordClientForBot(
       GatewayIntentBits.MessageContent,
       GatewayIntentBits.DirectMessages,
     ],
+    partials: [Partials.Channel, Partials.Message],
   });
 
   // Set up event handlers

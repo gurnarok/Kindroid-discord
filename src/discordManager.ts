@@ -13,11 +13,63 @@ import { ephemeralFetchConversation } from "./messageFetch";
 import { callKindroidAI } from "./kindroidAPI";
 import { BotConfig, DMConversationCount } from "./types";
 
+//Bot back and forth (prevent infinite loop but allow for mentioning other bots in conversation)
+type BotConversationChain = {
+  chainCount: number; // how many consecutive bot messages
+  lastBotId: string; // ID of the last bot
+  lastActivity: number; // timestamp of last message in chain
+};
+
+const botToBotChains = new Map<string, BotConversationChain>();
+
 // Track active bot instances
 const activeBots = new Map<string, Client>();
 
 // Track DM conversation counts with proper typing
 const dmConversationCounts = new Map<string, DMConversationCount>();
+
+// Helper function to check if the bot can respond to a channel before responding
+function shouldAllowBotMessage(message: Message): boolean {
+  const channelId = message.channel.id;
+
+  // Get (or initialize) the chain data for this channel
+  const chainData = botToBotChains.get(channelId) || {
+    chainCount: 0,
+    lastBotId: "",
+    lastActivity: 0,
+  };
+
+  const now = Date.now();
+  const timeSinceLast = now - chainData.lastActivity;
+
+  // Example threshold settings
+  const MAX_BOT_CHAIN = 3; // max back-and-forth between bots
+  const INACTIVITY_RESET = 60_000; // reset chain after 60 sec
+
+  // If too much time passed, reset the chain
+  if (timeSinceLast > INACTIVITY_RESET) {
+    chainData.chainCount = 0;
+    chainData.lastBotId = "";
+  }
+
+  // If this message is from a *different* bot ID than before, increment chain
+  if (chainData.lastBotId && chainData.lastBotId !== message.author.id) {
+    chainData.chainCount++;
+  }
+
+  // Update tracking
+  chainData.lastBotId = message.author.id;
+  chainData.lastActivity = now;
+
+  // Disallow if we've hit or exceeded the max chain limit
+  if (chainData.chainCount >= MAX_BOT_CHAIN) {
+    return false;
+  }
+
+  // Otherwise store updated data & allow
+  botToBotChains.set(channelId, chainData);
+  return true;
+}
 
 // Helper function to check if the bot can respond to a channel before responding
 async function canRespondToChannel(
@@ -80,8 +132,17 @@ async function createDiscordClientForBot(
 
   // Handle incoming messages
   client.on("messageCreate", async (message: Message) => {
-    // Ignore bot messages
-    if (message.author.bot) return;
+    if (message.author.bot) {
+      if (!shouldAllowBotMessage(message)) {
+        // If chain limit exceeded, do not respond.
+        return;
+      }
+    } else {
+      const channelId = message.channel.id;
+      if (botToBotChains.has(channelId)) {
+        botToBotChains.delete(channelId);
+      }
+    }
 
     if (!(await canRespondToChannel(message.channel))) return;
 

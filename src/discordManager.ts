@@ -30,6 +30,11 @@ const dmConversationCounts = new Map<string, DMConversationCount>();
 
 // Helper function to check if the bot can respond to a channel before responding
 function shouldAllowBotMessage(message: Message): boolean {
+  // If in DM, skip chain logic entirely
+  if (message.channel.type === ChannelType.DM) {
+    return false;
+  }
+
   const channelId = message.channel.id;
 
   // Get (or initialize) the chain data for this channel
@@ -132,6 +137,11 @@ async function createDiscordClientForBot(
 
   // Handle incoming messages
   client.on("messageCreate", async (message: Message) => {
+    // If the message is from the same bot, skip (avoid self-mention loops)
+    if (message.author.bot && message.author.id === client.user?.id) {
+      return;
+    }
+
     if (message.author.bot) {
       if (!shouldAllowBotMessage(message)) {
         // If chain limit exceeded, do not respond.

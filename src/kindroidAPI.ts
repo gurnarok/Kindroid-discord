@@ -25,6 +25,12 @@ export async function callKindroidAI(
 
     const lastUsername = conversation[conversation.length - 1].username;
 
+    // Hash username into consistent alphanumeric string for rate limiting
+    const hashedUsername = Buffer.from(lastUsername)
+      .toString("base64")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .slice(0, 32); // Limit length to 32 chars
+
     const response = await axios.post<KindroidResponse>(
       process.env.KINDROID_INFER_URL!,
       {
@@ -35,7 +41,7 @@ export async function callKindroidAI(
       {
         headers: {
           Authorization: `Bearer ${process.env.KINDROID_API_KEY!}`,
-          "X-Kindroid-Requester": lastUsername,
+          "X-Kindroid-Requester": hashedUsername,
           "Content-Type": "application/json",
         },
       }

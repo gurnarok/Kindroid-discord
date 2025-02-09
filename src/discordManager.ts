@@ -49,7 +49,7 @@ function shouldAllowBotMessage(message: Message): boolean {
 
   // Example threshold settings
   const MAX_BOT_CHAIN = 3; // max back-and-forth between bots
-  const INACTIVITY_RESET = 60_000; // reset chain after 60 sec
+  const INACTIVITY_RESET = 600_000; // reset chain after 10 min
 
   // If too much time passed, reset the chain
   if (timeSinceLast > INACTIVITY_RESET) {
